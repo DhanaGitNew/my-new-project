@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>New-Lux</artifactId>
+    <packaging>pom</packaging>
+    <version>${revision}</version>
+    <modules>
+        <module>db</module>
+        <module>Player</module>
+        <module>Report</module>
+        <module>Admin</module>
+        <module>web-api</module>
+        <module>esi-rpm</module>
+
+
+    </modules>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <revision>1.0-SNAPSHOT</revision>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>Admin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <artifactId>Player</artifactId>
+                <groupId>org.example</groupId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>AdminReport</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.example</groupId>
+                <artifactId>PlayerReport</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+
+            <executions>
+                <execution>
+                    <id>enforcer</id>
+                    <goals>
+                        <goal>enforce</goal>
+
+                    </goals>
+                    <configuration>
+                        <rules>
+                           <requireJavaVersion>
+                               <version>[1.8,)</version>
+                           </requireJavaVersion>
+                            <requireMavenVersion>
+                                <version>[3.9,)</version>
+                            </requireMavenVersion>
+                        </rules>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+
+
+
+</project>

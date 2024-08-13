@@ -1,0 +1,104 @@
+<project name="deploy" basedir=".">
+
+  <dirname property="deploy.basedir" file="${ant.file.deploy}"/>
+  <property name="portal.install.dir" value="/usr/local/gtech/ccportal" />
+  <property name="jboss.container.dir.name" value="portal-author-jboss5-container" />
+
+  <property name="reinstall" value="true" />
+  <property name="restart" value="true" />
+  <property name="deploy.content" value="false"/>
+
+  <target name="deploy:validate">
+    <fail unless="env.config" message="Please specify environment as -Denv.config=" />
+    <fail unless="site.name" message="Please specify site name as -Dsite.name=" />
+  </target>
+
+  <target name="init_contrib">
+    <!--taken from container not to duplicate jar's -->
+    <taskdef resource="net/sf/antcontrib/antlib.xml" >
+      <classpath>
+        <pathelement location="${lib.path}/ant-contrib-1.0b2.jar"/>
+      </classpath>
+    </taskdef>
+  </target>
+
+  <target name="deploy:remote-cq5-author" depends="init_contrib,deploy:validate">
+
+    <fail unless="rpm.version" message="Please specify rpm version to be installed as -Drpm.version=" />
+
+    <echo>Synchronizing application configuration on remote environment</echo>
+    <echo>site: ${site.name}, env: ${env.config}</echo>
+    <if>
+      <equals arg1="${reinstall}" arg2="true" />
+      <then>
+
+        <echo>Removing application on ${deploy.host}</echo>
+        <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+             command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ;yum -y remove lux-ccportal &quot; " />
+
+      </then>
+    </if>
+
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; yum -q -y --nogpgcheck install  ${site.name}-ccportal-${rpm.version} &quot; " />
+
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; mkdir -p /var/log/ccportal; chmod 777 /var/log/ccportal &quot; " />
+
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; mv /etc/gtech/ccportal/ccportal-author.properties /etc/gtech/ccportal/ccportal-author.properties.orig ;cp -rp /etc/gtech/ccportal/${env.config}-author/ccportal-author.properties /etc/gtech/ccportal; &quot; " />
+
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="false" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; cd ${portal.install.dir}; ./install-portal-app.sh &quot; "/>
+
+    <echo message="Deploying content: ${deploy.content}"/>
+    <if>
+      <equals arg1="${deploy.content}" arg2="true" />
+      <then>
+        <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="false" usepty="true"
+             command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; cd ${portal.install.dir}; ./install-portal-content.sh &quot; "/>
+      </then>
+    </if>
+
+    <!-- Making sure that launchpad is owned by cq5 user -->
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile ; chown -R cq5. /var/lib/cq5/crx-quickstart/launchpad/ &quot; " />
+
+    <if>
+      <equals arg1="${restart}" arg2="true"/>
+      <then>
+        <antcall target="deploy:remote-jboss-start" />
+      </then>
+    </if>
+    <antcall target="deploy:verify" />
+  </target>
+
+  <target name="deploy:remote-jboss-stop">
+    <echo>Stopping application</echo>
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="false" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile; /etc/init.d/cq5 stop &quot; " />
+  </target>
+
+  <target name="deploy:remote-jboss-start">
+    <echo>Starting application</echo>
+    <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="true" usepty="true"
+         command="echo ${deploy.passwd} | sudo -S -- /bin/sh -c &quot; . /etc/profile; /etc/init.d/cq5 restart &quot; " />
+  </target>
+  <target name="deploy:verify" depends="deploy:validate">
+    <fail unless="rpm.version" message="Please specify rpm version to be installed as -Drpm.version=" />
+    <echo>Verify application</echo>
+    <if>
+      <equals arg1="${rpm.version}" arg2="*"/>
+      <then>
+        <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="false"
+             command="rpm -qa | grep ${site.name}-ccportal |wc -l" outputproperty="installedSiteRpmVersionNumber" />
+        <echo>Number of installed Site rpms in any version: ${installedSiteRpmVersionNumber}</echo>
+      </then>
+      <else>
+        <sshexec host="${deploy.host}" username="${deploy.user}" password="${deploy.passwd}" trust="true" failonerror="false"
+             command="rpm -qa | grep ${site.name}-ccportal |grep ${rpm.version} |wc -l" outputproperty="installedSiteRpmVersionNumber" />
+        <echo>Number of installed Site rpms in version ${rpm.version}: ${installedSiteRpmVersionNumber}</echo>
+      </else>
+    </if>
+  </target>
+</project>
