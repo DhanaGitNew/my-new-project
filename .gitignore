@@ -1,0 +1,9 @@
+*.iml
+.idea
+.classpath
+.project
+.settings
+target
+pom.xml.versionsBackup
+node_modules
+/*.bat
